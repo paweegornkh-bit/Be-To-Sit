@@ -1,0 +1,206 @@
+generator client { provider = "prisma-client-js" }
+datasource db { provider = "postgresql"; url = env("DATABASE_URL") }
+
+enum Role { CUSTOMER STAFF_HOST STAFF_FINANCE STAFF_STOCK MANAGER OWNER }
+enum ReservationStatus { PENDING CONFIRMED SEATED COMPLETED CANCELLED NO_SHOW }
+enum TableStatus { AVAILABLE OCCUPIED RESERVED MAINTENANCE }
+enum PaymentStatus { PENDING SUCCESS FAILED REFUNDED }
+enum PaymentMethod { PROMPTPAY CREDIT_CARD CASH TRANSFER }
+enum MovementType { IN OUT ADJUST }
+enum ApprovalStatus { PENDING APPROVED REJECTED }
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String   @map("password_hash")
+  fullName      String   @map("full_name")
+  phone         String?
+  role          Role     @default(CUSTOMER)
+  isActive      Boolean  @default(true) @map("is_active")
+  failedLogins  Int      @default(0) @map("failed_logins")
+  lockedUntil   DateTime? @map("locked_until")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  reservations  Reservation[]
+  movements     StockMovement[]
+  expenses      Expense[]       @relation("Requester")
+  approvals     Expense[]       @relation("Approver")
+  auditLogs     AuditLog[]
+  @@map("users")
+}
+
+model Zone {
+  id       String  @id @default(uuid())
+  name     String  @unique
+  imageUrl String? @map("image_url")
+  tables   Table[]
+  @@map("zones")
+}
+
+model Table {
+  id      String      @id @default(uuid())
+  zoneId  String      @map("zone_id")
+  tableNo String      @unique @map("table_no")
+  seats   Int
+  status  TableStatus @default(AVAILABLE)
+  posX    Float       @default(0) @map("pos_x")
+  posY    Float       @default(0) @map("pos_y")
+
+  zone         Zone          @relation(fields: [zoneId], references: [id])
+  reservations Reservation[]
+  @@index([zoneId])
+  @@map("tables")
+}
+
+model Reservation {
+  id            String            @id @default(uuid())
+  userId        String            @map("user_id")
+  tableId       String            @map("table_id")
+  reserveDate   DateTime          @map("reserve_date") @db.Date
+  timeSlot      String            @map("time_slot")
+  partySize     Int               @map("party_size")
+  status        ReservationStatus @default(PENDING)
+  depositAmount Decimal           @default(0) @map("deposit_amount") @db.Decimal(10,2)
+  totalAmount   Decimal           @default(0) @map("total_amount") @db.Decimal(10,2)
+  note          String?           @db.VarChar(200)
+  createdAt     DateTime          @default(now()) @map("created_at")
+
+  user     User               @relation(fields: [userId], references: [id])
+  table    Table              @relation(fields: [tableId], references: [id])
+  items    ReservationItem[]
+  payments Payment[]
+  review   Review?
+
+  @@unique([tableId, reserveDate, timeSlot], name: "uniq_table_slot")
+  @@index([reserveDate, status])
+  @@map("reservations")
+}
+
+model MenuCategory {
+  id    String     @id @default(uuid())
+  name  String     @unique
+  items MenuItem[]
+  @@map("menu_categories")
+}
+
+model MenuItem {
+  id          String  @id @default(uuid())
+  categoryId  String  @map("category_id")
+  name        String
+  description String?
+  price       Decimal @db.Decimal(10,2)
+  imageUrl    String? @map("image_url")
+  isAvailable Boolean @default(true) @map("is_available")
+  isDeleted   Boolean @default(false) @map("is_deleted")
+
+  category MenuCategory      @relation(fields: [categoryId], references: [id])
+  items    ReservationItem[]
+  recipes  RecipeItem[]
+  @@index([categoryId, isDeleted])
+  @@map("menu_items")
+}
+
+model ReservationItem {
+  id            String  @id @default(uuid())
+  reservationId String  @map("reservation_id")
+  menuItemId    String  @map("menu_item_id")
+  qty           Int
+  unitPrice     Decimal @map("unit_price") @db.Decimal(10,2)
+
+  reservation Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  menuItem    MenuItem    @relation(fields: [menuItemId], references: [id])
+  @@map("reservation_items")
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  reservationId String        @map("reservation_id")
+  method        PaymentMethod
+  amount        Decimal       @db.Decimal(10,2)
+  refCode       String        @unique @map("ref_code")
+  status        PaymentStatus @default(PENDING)
+  paidAt        DateTime?     @map("paid_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  reservation Reservation @relation(fields: [reservationId], references: [id])
+  @@index([status, paidAt])
+  @@map("payments")
+}
+
+model Ingredient {
+  id           String  @id @default(uuid())
+  name         String  @unique
+  unit         String
+  stockQty     Decimal @default(0) @map("stock_qty") @db.Decimal(10,2)
+  reorderPoint Decimal @default(0) @map("reorder_point") @db.Decimal(10,2)
+
+  recipes   RecipeItem[]
+  movements StockMovement[]
+  @@map("ingredients")
+}
+
+model RecipeItem {
+  menuItemId   String  @map("menu_item_id")
+  ingredientId String  @map("ingredient_id")
+  qty          Decimal @db.Decimal(10,2)
+
+  menuItem   MenuItem   @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
+  @@id([menuItemId, ingredientId])
+  @@map("recipe_items")
+}
+
+model StockMovement {
+  id           String       @id @default(uuid())
+  ingredientId String       @map("ingredient_id")
+  type         MovementType
+  qty          Decimal      @db.Decimal(10,2)
+  note         String?
+  createdById  String       @map("created_by")
+  createdAt    DateTime     @default(now()) @map("created_at")
+
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
+  createdBy  User       @relation(fields: [createdById], references: [id])
+  @@map("stock_movements")
+}
+
+model Expense {
+  id          String         @id @default(uuid())
+  category    String
+  amount      Decimal        @db.Decimal(10,2)
+  description String
+  status      ApprovalStatus @default(PENDING)
+  requestedById String       @map("requested_by")
+  approvedById  String?      @map("approved_by")
+  approvedAt    DateTime?    @map("approved_at")
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  requestedBy User  @relation("Requester", fields: [requestedById], references: [id])
+  approvedBy  User? @relation("Approver",  fields: [approvedById],  references: [id])
+  @@map("expenses")
+}
+
+model Review {
+  id            String   @id @default(uuid())
+  reservationId String   @unique @map("reservation_id")
+  rating        Int
+  comment       String?  @db.VarChar(500)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  reservation Reservation @relation(fields: [reservationId], references: [id])
+  @@map("reviews")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?  @map("user_id")
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
+  ipAddress String?  @map("ip_address")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+  @@index([entity, createdAt])
+  @@map("audit_logs")
+}
