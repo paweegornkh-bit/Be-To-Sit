@@ -19,7 +19,7 @@ app.use(helmet({
       scriptSrc:  ["'self'"],
       styleSrc:   ["'self'", "'unsafe-inline'"],
       imgSrc:     ["'self'", 'https://res.cloudinary.com', 'data:'],
-      connectSrc: ["'self'", ...env.corsOrigin],
+      connectSrc: ["'self'", '*', ...env.corsOrigin],
       objectSrc:  ["'none'"],
       frameAncestors: ["'none'"]
     }
@@ -28,9 +28,12 @@ app.use(helmet({
 }));
 
 app.use(cors({
-  origin: (origin, cb) =>
-    (!origin || env.corsOrigin.includes(origin))
-      ? cb(null, true) : cb(new Error('ไม่อนุญาตจาก Origin นี้')),
+  origin: (origin, cb) => {
+    if (!origin || env.corsOrigin.length === 0 || env.corsOrigin.includes(origin) || origin.includes('onrender.com') || origin.includes('localhost')) {
+      return cb(null, true);
+    }
+    return cb(null, true);
+  },
   credentials: true
 }));
 
