@@ -19,6 +19,7 @@ export default function PaymentPage() {
   const [method, setMethod] = useState('PROMPTPAY');
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
+    const [slipFile, setSlipFile] = useState(null);
   const [error, setError] = useState('');
 
   const load = () => api.get(`/reservations/${id}`)
@@ -41,11 +42,33 @@ export default function PaymentPage() {
     }
   };
 
+  const onSubmitSlip = async () => {
+    if (!slipFile) return toast.error('กรุณาแนบสลิปการโอนเงิน');
+    const data = new FormData();
+    data.append('reservationId', id);
+    data.append('method', 'TRANSFER');
+    data.append('slip', slipFile);
+    setPaying(true);
+    try {
+      await api.post('/payments/transfer-slip', data, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      toast.success('ส่งสลิปแล้ว รอการตรวจสอบจากการเงิน');
+      navigate('/my-reservations');
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setPaying(false);
+    }
+  };
+
   if (loading) return <Spinner />;
   if (error) return <main className="max-w-md mx-auto px-4 py-8"><ErrorAlert message={error} /></main>;
   if (!reservation) return null;
 
   const alreadyPaid = reservation.payments?.some((p) => p.status === 'SUCCESS');
+  const pendingPayment = reservation.payments?.some((p) => p.status === 'PENDING');
+  const failedPayment = reservation.payments?.some((p) => p.status === 'FAILED');
 
   return (
     <main className="max-w-md mx-auto px-4 py-8">
@@ -77,6 +100,10 @@ export default function PaymentPage() {
         <div className="card text-center text-green-700 bg-green-50 border-green-200">
           การจองนี้ชำระเงินเรียบร้อยแล้ว
         </div>
+      ) : pendingPayment ? (
+        <div className="card text-center text-amber-700 bg-amber-50 border-amber-200">
+          ส่งสลิปแล้ว กรุณารอการตรวจสอบจากการเงิน
+        </div>
       ) : Number(reservation.depositAmount) <= 0 ? (
         <div className="card text-center text-gray-600">การจองนี้ไม่ต้องชำระค่ามัดจำ</div>
       ) : (
@@ -92,9 +119,28 @@ export default function PaymentPage() {
               </button>
             ))}
           </div>
-          <button onClick={onPay} disabled={paying} className="btn-primary w-full">
-            {paying ? 'กำลังดำเนินการ...' : `ชำระ ${formatTHB(reservation.depositAmount)}`}
-          </button>
+          {method === 'TRANSFER' && (
+            <div>
+              <div className="rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm space-y-1">
+                <p className="font-semibold text-gray-800">ข้อมูลสำหรับโอนเงิน</p>
+                <p>ธนาคารกสิกรไทย: <strong>025-864-566</strong></p>
+                <p>พร้อมเพย์: <strong>082-587-416</strong></p>
+                <p className="text-xs text-gray-500">โอนตามยอดค่ามัดจำ แล้วแนบสลิปด้านล่าง</p>
+              </div>
+              <label className="label" htmlFor="payment-slip">สลิปโอนเงิน</label>
+              <input id="payment-slip" type="file" accept="image/jpeg,image/png,image/webp"
+                     className="input" onChange={(e) => setSlipFile(e.target.files?.[0] || null)} />
+              <p className="text-xs text-gray-500 mt-1">รองรับ JPG, PNG, WEBP ขนาดไม่เกิน 5MB</p>
+            </div>
+          )}
+          {method === 'TRANSFER' ? (
+            <button onClick={onSubmitSlip} disabled={paying || !slipFile}
+                    className="btn-primary w-full">ส่งสลิป</button>
+          ) : (
+            <button onClick={onPay} disabled={paying} className="btn-primary w-full">
+              {paying ? 'กำลังดำเนินการ...' : `ชำระ ${formatTHB(reservation.depositAmount)}`}
+            </button>
+          )}
         </div>
       )}
     </main>

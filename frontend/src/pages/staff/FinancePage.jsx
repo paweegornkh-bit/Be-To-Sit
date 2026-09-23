@@ -23,6 +23,20 @@ export default function FinancePage() {
   useEffect(() => { load(); }, []);
 
   const total = rows.reduce((s, p) => s + (p.status === 'SUCCESS' ? Number(p.amount) : 0), 0);
+  const apiOrigin = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/api\/v1\/?$/, '');
+  const [reviewing, setReviewing] = useState(null);
+
+  const review = async (id, approve) => {
+    setReviewing(id);
+    try {
+      await api.patch(`/payments/${id}/review`, { approve });
+      load();
+    } catch (e) {
+      setError(getErrorMessage(e));
+    } finally {
+      setReviewing(null);
+    }
+  };
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-8">
@@ -53,7 +67,8 @@ export default function FinancePage() {
               <tr className="text-left text-gray-500 border-b">
                 <th className="py-2 pr-3">อ้างอิง</th><th className="py-2 pr-3">ลูกค้า</th>
                 <th className="py-2 pr-3">โต๊ะ</th><th className="py-2 pr-3">ช่องทาง</th>
-                <th className="py-2 pr-3">จำนวนเงิน</th><th className="py-2 pr-3">สถานะ</th>
+                <th className="py-2 pr-3">จำนวนเงิน</th><th className="py-2 pr-3">สลิป</th>
+                <th className="py-2 pr-3">สถานะ</th><th className="py-2 pr-3">ตรวจสอบ</th>
               </tr>
             </thead>
             <tbody>
@@ -64,7 +79,19 @@ export default function FinancePage() {
                   <td className="py-2 pr-3">{p.reservation?.table?.tableNo}</td>
                   <td className="py-2 pr-3">{p.method}</td>
                   <td className="py-2 pr-3">{formatTHB(p.amount)}</td>
+                  <td className="py-2 pr-3">
+                    {p.slipUrl ? <a href={`${apiOrigin}${p.slipUrl}`} target="_blank" rel="noreferrer"
+                                    className="text-brand-600 underline">เปิดดู</a> : '-'}
+                  </td>
                   <td className="py-2 pr-3"><StatusBadge status={p.status} /></td>
+                  <td className="py-2 pr-3">
+                    {p.status === 'PENDING' && <div className="flex gap-2">
+                      <button disabled={reviewing === p.id} onClick={() => review(p.id, true)}
+                              className="text-green-700 underline">อนุมัติ</button>
+                      <button disabled={reviewing === p.id} onClick={() => review(p.id, false)}
+                              className="text-red-700 underline">ปฏิเสธ</button>
+                    </div>}
+                  </td>
                 </tr>
               ))}
             </tbody>

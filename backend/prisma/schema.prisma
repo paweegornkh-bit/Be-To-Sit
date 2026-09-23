@@ -168,6 +168,7 @@ model Payment {
   method        PaymentMethod
   amount        Decimal       @db.Decimal(10, 2)
   refCode       String        @unique @map("ref_code")
+  slipUrl       String?       @map("slip_url")
   status        PaymentStatus @default(PENDING)
   paidAt        DateTime?     @map("paid_at")
   createdAt     DateTime      @default(now()) @map("created_at")

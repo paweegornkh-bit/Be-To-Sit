@@ -10,7 +10,7 @@ const INCLUDE = {
   table: { select: { tableNo: true, seats: true, zone: { select: { name: true } } } },
   user:  { select: { fullName: true, phone: true, email: true } },
   items: { include: { menuItem: { select: { name: true, imageUrl: true } } } },
-  payments: { select: { id: true, status: true, amount: true, method: true, paidAt: true } }
+  payments: { select: { id: true, status: true, amount: true, method: true, paidAt: true, slipUrl: true } }
 };
 
 export const reservationService = {

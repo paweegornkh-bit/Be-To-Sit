@@ -4,7 +4,7 @@ import { authenticate } from '../middlewares/auth.js';
 import { requirePermission, requireRole } from '../middlewares/rbac.js';
 import { validate } from '../middlewares/validate.js';
 import { authLimiter, writeLimiter } from '../middlewares/rateLimit.js';
-import { asyncHandler } from '../utils/ApiError.js';
+import { ApiError, asyncHandler } from '../utils/ApiError.js';
 import { ok, created, noContent, paginate } from '../utils/response.js';
 import { writeAudit } from '../utils/audit.js';
 import * as V from '../validators/index.js';
@@ -12,6 +12,7 @@ import { authController } from '../controllers/auth.controller.js';
 import { reservationService } from '../services/reservation.service.js';
 import { paymentService } from '../services/payment.service.js';
 import { reportService } from '../services/report.service.js';
+import { uploadPaymentSlip, publicUploadUrl } from '../middlewares/upload.js';
 
 const r = Router();
 const CACHE_PUBLIC = (s) => (_req, res, next) => {
@@ -148,6 +149,27 @@ r.post('/payments', authenticate, writeLimiter, requirePermission('payment:creat
     await writeAudit({ userId: req.user.id, action: 'PAY', entity: 'Payment',
                        entityId: p.id, ip: req.ip });
     created(res, p);
+  }));
+
+r.post('/payments/transfer-slip', authenticate, writeLimiter,
+  requirePermission('payment:create'), uploadPaymentSlip,
+  asyncHandler(async (req, res) => {
+    if (!req.file) throw ApiError.badRequest('กรุณาแนบสลิปการโอนเงิน');
+    const { reservationId, method = 'TRANSFER' } = req.body;
+    const p = await paymentService.submitSlip({
+      reservationId, method, slipUrl: publicUploadUrl('payment-slips', req.file.filename)
+    }, req.user);
+    await writeAudit({ userId: req.user.id, action: 'SUBMIT_PAYMENT_SLIP', entity: 'Payment',
+                       entityId: p.id, ip: req.ip });
+    created(res, p);
+  }));
+
+r.patch('/payments/:id/review', authenticate, requirePermission('payment:update'),
+  asyncHandler(async (req, res) => {
+    const p = await paymentService.review(req.params.id, Boolean(req.body.approve));
+    await writeAudit({ userId: req.user.id, action: req.body.approve ? 'APPROVE_PAYMENT' : 'REJECT_PAYMENT',
+                       entity: 'Payment', entityId: p.id, ip: req.ip });
+    ok(res, p);
   }));
 
 r.get('/payments', authenticate, requirePermission('payment:read'), NO_STORE,
