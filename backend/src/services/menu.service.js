@@ -1,4 +1,17 @@
 import { prisma } from '../config/prisma.js';
+import { ApiError } from '../utils/ApiError.js';
+
+const assertUniqueName = async (name, id) => {
+  const duplicate = await prisma.menuItem.findFirst({
+    where: {
+      isDeleted: false,
+      name: { equals: name, mode: 'insensitive' },
+      ...(id && { id: { not: id } })
+    },
+    select: { id: true }
+  });
+  if (duplicate) throw ApiError.conflict('DUPLICATE_MENU_NAME', 'มีชื่อเมนูนี้อยู่แล้ว');
+};
 
 export const menuService = {
   listCategories() {
@@ -28,12 +41,28 @@ export const menuService = {
     });
   },
 
-  createItem(data) {
-    return prisma.menuItem.create({ data });
+  async createItem(data) {
+    await assertUniqueName(data.name);
+    try {
+      return await prisma.menuItem.create({ data });
+    } catch (error) {
+      if (error.code === 'P2002') {
+        throw ApiError.conflict('DUPLICATE_MENU_NAME', 'มีชื่อเมนูนี้อยู่แล้ว');
+      }
+      throw error;
+    }
   },
 
-  updateItem(id, data) {
-    return prisma.menuItem.update({ where: { id }, data });
+  async updateItem(id, data) {
+    await assertUniqueName(data.name, id);
+    try {
+      return await prisma.menuItem.update({ where: { id }, data });
+    } catch (error) {
+      if (error.code === 'P2002') {
+        throw ApiError.conflict('DUPLICATE_MENU_NAME', 'มีชื่อเมนูนี้อยู่แล้ว');
+      }
+      throw error;
+    }
   },
 
   deleteItem(id) {

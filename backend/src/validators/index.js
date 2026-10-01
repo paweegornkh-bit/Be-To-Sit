@@ -48,7 +48,7 @@ export const paymentReviewSchema = z.object({ approve: z.boolean() }).strict();
 
 export const menuItemSchema = z.object({
   categoryId:  z.string().uuid(),
-  name:        z.string().min(2).max(120),
+  name:        z.string().trim().min(2).max(120),
   description: z.string().max(500).optional(),
   price:       z.coerce.number().positive().max(99999),
   imageUrl:    z.string().url().optional(),
