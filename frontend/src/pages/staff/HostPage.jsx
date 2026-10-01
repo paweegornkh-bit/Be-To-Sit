@@ -37,12 +37,15 @@ export default function HostPage() {
     }
   };
 
-  if (loading) return <Spinner />;
+  if (loading) return <main id="main-content" className="max-w-5xl mx-auto px-4 py-8">
+    <h1 className="sr-only">คิววันนี้</h1><Spinner />
+  </main>;
 
   return (
-    <main className="max-w-5xl mx-auto px-4 py-8">
+    <main id="main-content" className="max-w-5xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold mb-6">คิววันนี้ — {today}</h1>
       <ErrorAlert message={error} />
+      <section aria-label="รายการจองวันนี้">
       {rows.length === 0 ? <EmptyState title="ยังไม่มีการจองวันนี้" /> : (
         <div className="space-y-3">
           {rows.map((r) => (
@@ -62,6 +65,7 @@ export default function HostPage() {
           ))}
         </div>
       )}
+      </section>
     </main>
   );
 }

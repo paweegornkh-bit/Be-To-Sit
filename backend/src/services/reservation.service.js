@@ -96,6 +96,87 @@ export const reservationService = {
     }
   },
 
+  async update(id, dto, user) {
+    const existing = await prisma.reservation.findUnique({
+      where: { id }, include: { payments: true }
+    });
+    if (!existing) throw ApiError.notFound('ไม่พบการจองนี้');
+    if (existing.userId !== user.id) {
+      throw ApiError.forbidden('คุณไม่มีสิทธิ์แก้ไขการจองนี้');
+    }
+    if (!['PENDING', 'CONFIRMED'].includes(existing.status) || existing.payments.length) {
+      throw ApiError.conflict('RESERVATION_NOT_EDITABLE', 'ไม่สามารถแก้ไขการจองที่เริ่มชำระเงินแล้ว');
+    }
+
+    const date = new Date(dto.reserveDate);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    if (Number.isNaN(date.getTime()) || date < today) {
+      throw ApiError.badRequest('ไม่สามารถจองย้อนหลังได้');
+    }
+    if ((date - today) / 86400000 > 30) {
+      throw ApiError.badRequest('จองล่วงหน้าได้ไม่เกิน 30 วัน');
+    }
+
+    const table = await prisma.table.findUnique({ where: { id: dto.tableId } });
+    if (!table) throw ApiError.notFound('ไม่พบโต๊ะที่เลือก');
+    if (table.status === 'MAINTENANCE') {
+      throw ApiError.conflict('TABLE_UNAVAILABLE', 'โต๊ะนี้ปิดปรับปรุง');
+    }
+    if (dto.partySize > table.seats) {
+      throw ApiError.badRequest(`โต๊ะ ${table.tableNo} รองรับได้สูงสุด ${table.seats} ที่นั่ง`);
+    }
+
+    const duplicate = await prisma.reservation.findFirst({
+      where: {
+        id: { not: id }, tableId: dto.tableId,
+        reserveDate: date, timeSlot: dto.timeSlot,
+        status: { notIn: ['CANCELLED', 'NO_SHOW'] }
+      }
+    });
+    if (duplicate) {
+      throw ApiError.conflict('TABLE_NOT_AVAILABLE', 'โต๊ะนี้ถูกจองแล้วในช่วงเวลาที่เลือก');
+    }
+
+    let total = 0;
+    const itemData = [];
+    if (dto.items.length) {
+      const ids = [...new Set(dto.items.map((item) => item.menuItemId))];
+      const menus = await prisma.menuItem.findMany({
+        where: { id: { in: ids }, isDeleted: false, isAvailable: true }
+      });
+      if (menus.length !== ids.length) throw ApiError.badRequest('มีเมนูที่ไม่พร้อมจำหน่าย');
+      const priceMap = new Map(menus.map((menu) => [menu.id, Number(menu.price)]));
+      for (const item of dto.items) {
+        const unitPrice = priceMap.get(item.menuItemId);
+        total += unitPrice * item.qty;
+        itemData.push({ menuItemId: item.menuItemId, qty: item.qty, unitPrice });
+      }
+    }
+
+    const deposit = Math.round(total * env.depositRate * 100) / 100;
+    try {
+      return await prisma.$transaction(async (tx) => {
+        await tx.reservationItem.deleteMany({ where: { reservationId: id } });
+        return tx.reservation.update({
+          where: { id },
+          data: {
+            tableId: dto.tableId, reserveDate: date, timeSlot: dto.timeSlot,
+            partySize: dto.partySize, note: clean(dto.note),
+            totalAmount: total, depositAmount: deposit,
+            status: total > 0 ? 'PENDING' : 'CONFIRMED',
+            items: { create: itemData }
+          },
+          include: INCLUDE
+        });
+      });
+    } catch (error) {
+      if (error.code === 'P2002') {
+        throw ApiError.conflict('TABLE_NOT_AVAILABLE', 'โต๊ะนี้ถูกจองแล้วในช่วงเวลาที่เลือก');
+      }
+      throw error;
+    }
+  },
+
   async updateStatus(id, status, user) {
     const r = await prisma.reservation.findUnique({ where: { id } });
     if (!r) throw ApiError.notFound('ไม่พบการจองนี้');

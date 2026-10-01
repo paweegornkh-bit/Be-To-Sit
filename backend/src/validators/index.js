@@ -31,6 +31,21 @@ export const updateReservationStatusSchema = z.object({
   status: z.enum(['PENDING','CONFIRMED','SEATED','COMPLETED','CANCELLED','NO_SHOW'])
 }).strict();
 
+export const idParamsSchema = z.object({ id: z.string().uuid('รหัสไม่ถูกต้อง') }).strict();
+
+export const tableStatusSchema = z.object({
+  status: z.enum(['AVAILABLE', 'OCCUPIED', 'RESERVED', 'MAINTENANCE'])
+}).strict();
+
+export const expenseSchema = z.object({
+  category: z.string().trim().min(2).max(100),
+  amount: z.coerce.number().positive().max(99999999),
+  description: z.string().trim().min(2).max(500)
+}).strict();
+
+export const expenseApprovalSchema = z.object({ approve: z.boolean() }).strict();
+export const paymentReviewSchema = z.object({ approve: z.boolean() }).strict();
+
 export const menuItemSchema = z.object({
   categoryId:  z.string().uuid(),
   name:        z.string().min(2).max(120),

@@ -27,10 +27,10 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={toast}>
       {children}
-      <div className="fixed bottom-5 right-5 z-50 space-y-2 w-80"
-           role="status" aria-live="polite">
+      <div className="fixed bottom-5 right-5 z-50 space-y-2 w-80">
         {items.map((t) => (
-          <div key={t.id}
+          <div key={t.id} role={t.tone === 'error' ? 'alert' : 'status'}
+               aria-live={t.tone === 'error' ? 'assertive' : 'polite'}
                className={`px-4 py-3 rounded-lg border shadow-sm text-sm ${TONE[t.tone]}`}>
             {t.message}
           </div>

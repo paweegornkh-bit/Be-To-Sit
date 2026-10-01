@@ -1,5 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { throttle } from '../utils/perf';
 
 const MENU = [
   { to: '/booking',            label: 'จองโต๊ะ',       roles: ['CUSTOMER'] },
@@ -21,11 +23,23 @@ const ROLE_LABEL = {
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [scrolled, setScrolled] = useState(false);
   const items = MENU.filter((m) => m.roles.includes(user?.role));
+
+  useEffect(() => {
+    // ใช้ throttle จำกัดการอัปเดต header ขณะ scroll และถอด listener เมื่อออกจากหน้า
+    const handleScroll = throttle(() => setScrolled(window.scrollY > 8), 150);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white border-b sticky top-0 z-40">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:bg-white focus:px-4 focus:py-2 focus:shadow">
+        ข้ามไปเนื้อหาหลัก
+      </a>
+      <header className={`bg-white sticky top-0 z-40 transition-shadow ${scrolled ? 'border-b shadow-sm' : 'border-b'}`}>
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center gap-6">
           <span className="text-xl font-bold text-brand-600">🍽️ TableTime</span>
           <nav aria-label="เมนูหลัก" className="flex-1 overflow-x-auto">

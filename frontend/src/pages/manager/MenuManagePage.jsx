@@ -3,6 +3,7 @@ import { api, getErrorMessage } from '../../services/api';
 import { useToast } from '../../components/ui/Toast';
 import { Spinner, EmptyState, ErrorAlert, Modal } from '../../components/ui/Common';
 import { formatTHB } from '../../utils/perf';
+import { useDebounce } from '../../hooks/useDebounce';
 
 const BLANK = { categoryId: '', name: '', description: '', price: '', isAvailable: true };
 
@@ -15,16 +16,26 @@ export default function MenuManagePage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(BLANK);
+  const [query, setQuery] = useState('');
+  const [searchLoading, setSearchLoading] = useState(false);
+  const debouncedQuery = useDebounce(query, 350);
 
-  const load = () => {
-    setLoading(true);
-    Promise.all([api.get('/menu-categories'), api.get('/menu-items', { params: { limit: 100 } })])
-      .then(([c, i]) => { setCategories(c.data.data); setItems(i.data.data); })
+  const load = (search = debouncedQuery) => {
+    setSearchLoading(true);
+    api.get('/menu-items', { params: { limit: 100, q: search || undefined } })
+      .then((r) => setItems(r.data.data))
       .catch((e) => setError(getErrorMessage(e)))
-      .finally(() => setLoading(false));
+      .finally(() => { setSearchLoading(false); setLoading(false); });
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    api.get('/menu-categories')
+      .then((r) => setCategories(r.data.data))
+      .catch((e) => setError(getErrorMessage(e)));
+  }, []);
+
+  // ใช้ debounce ลดจำนวนคำขอค้นหาเมนูระหว่างพิมพ์
+  useEffect(() => { load(debouncedQuery); }, [debouncedQuery]);
 
   const openNew = () => { setEditing(null); setForm(BLANK); setModalOpen(true); };
   const openEdit = (item) => {
@@ -59,17 +70,27 @@ export default function MenuManagePage() {
     }
   };
 
-  if (loading) return <Spinner />;
+  if (loading) return <main id="main-content" className="max-w-5xl mx-auto px-4 py-8">
+    <h1 className="sr-only">จัดการเมนู</h1><Spinner />
+  </main>;
 
   return (
-    <main className="max-w-5xl mx-auto px-4 py-8">
+    <main id="main-content" className="max-w-5xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">จัดการเมนู</h1>
         <button onClick={openNew} className="btn-primary">+ เพิ่มเมนู</button>
       </div>
       <ErrorAlert message={error} />
 
-      {items.length === 0 ? <EmptyState title="ยังไม่มีเมนู" /> : (
+      <label className="block mb-5" htmlFor="menu-search">
+        <span className="label">ค้นหาเมนู</span>
+        <input id="menu-search" type="search" className="input" value={query}
+               onChange={(e) => setQuery(e.target.value)} placeholder="พิมพ์ชื่อเมนู" />
+      </label>
+
+      <section aria-label="รายการเมนู">
+      {searchLoading ? <p className="text-sm text-gray-500 mb-4" role="status">กำลังค้นหาเมนู...</p> : null}
+      {items.length === 0 ? <EmptyState title="ไม่พบเมนู" /> : (
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -79,16 +100,26 @@ export default function MenuManagePage() {
                 <th className="py-2 pr-3"></th>
               </tr>
             </thead>
-            <tbody>
+            <tbody onClick={(e) => {
+              // ใช้ delegation เพื่อรองรับแถวเมนูจำนวนมากโดยมี handler จุดเดียว
+              const target = e.target.closest('[data-id]');
+              if (!target || !e.currentTarget.contains(target)) return;
+              const item = items.find((entry) => entry.id === target.dataset.id);
+              if (target.dataset.action === 'edit' && item) openEdit(item);
+              if (target.dataset.action === 'delete') onDelete(target.dataset.id);
+            }}>
               {items.map((m) => (
                 <tr key={m.id} className="border-b last:border-0">
-                  <td className="py-2 pr-3">{m.name}</td>
+                  <td className="py-2 pr-3">
+                    {m.imageUrl && <img src={m.imageUrl} alt={m.name} loading="lazy" className="w-12 h-12 object-cover rounded mb-1" />}
+                    {m.name}
+                  </td>
                   <td className="py-2 pr-3">{m.category?.name}</td>
                   <td className="py-2 pr-3">{formatTHB(m.price)}</td>
                   <td className="py-2 pr-3">{m.isAvailable ? 'พร้อมขาย' : 'งดขาย'}</td>
                   <td className="py-2 pr-3 text-right space-x-2">
-                    <button onClick={() => openEdit(m)} className="text-brand-600 text-sm">แก้ไข</button>
-                    <button onClick={() => onDelete(m.id)} className="text-red-600 text-sm">ลบ</button>
+                    <button data-id={m.id} data-action="edit" className="text-brand-600 text-sm">แก้ไข</button>
+                    <button data-id={m.id} data-action="delete" className="text-red-600 text-sm">ลบ</button>
                   </td>
                 </tr>
               ))}
@@ -96,34 +127,35 @@ export default function MenuManagePage() {
           </table>
         </div>
       )}
+      </section>
 
       <Modal open={modalOpen} title={editing ? 'แก้ไขเมนู' : 'เพิ่มเมนูใหม่'} onClose={() => setModalOpen(false)}>
         <form onSubmit={onSubmit} className="space-y-3">
           <div>
-            <label className="label">หมวดหมู่</label>
-            <select className="input" value={form.categoryId} required
+            <label className="label" htmlFor="menu-category">หมวดหมู่</label>
+            <select id="menu-category" className="input" value={form.categoryId} required
                     onChange={(e) => setForm((f) => ({ ...f, categoryId: e.target.value }))}>
               <option value="">เลือกหมวดหมู่</option>
               {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
           <div>
-            <label className="label">ชื่อเมนู</label>
-            <input className="input" required minLength={2} maxLength={120} value={form.name}
+            <label className="label" htmlFor="menu-name">ชื่อเมนู</label>
+            <input id="menu-name" className="input" required minLength={2} maxLength={120} value={form.name}
                    onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
           </div>
           <div>
-            <label className="label">คำอธิบาย</label>
-            <textarea className="input" maxLength={500} rows={2} value={form.description}
+            <label className="label" htmlFor="menu-description">คำอธิบาย</label>
+            <textarea id="menu-description" className="input" maxLength={500} rows={2} value={form.description}
                       onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
           </div>
           <div>
-            <label className="label">ราคา (บาท)</label>
-            <input type="number" step="0.01" min="0" className="input" required value={form.price}
+            <label className="label" htmlFor="menu-price">ราคา (บาท)</label>
+            <input id="menu-price" type="number" step="0.01" min="0" className="input" required value={form.price}
                    onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} />
           </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={form.isAvailable}
+          <label className="flex items-center gap-2 text-sm" htmlFor="menu-available">
+            <input id="menu-available" type="checkbox" checked={form.isAvailable}
                    onChange={(e) => setForm((f) => ({ ...f, isAvailable: e.target.checked }))} />
             พร้อมจำหน่าย
           </label>

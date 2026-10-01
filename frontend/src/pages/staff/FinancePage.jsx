@@ -23,8 +23,25 @@ export default function FinancePage() {
   useEffect(() => { load(); }, []);
 
   const total = rows.reduce((s, p) => s + (p.status === 'SUCCESS' ? Number(p.amount) : 0), 0);
-  const apiOrigin = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/api\/v1\/?$/, '');
   const [reviewing, setReviewing] = useState(null);
+
+  const openSlip = async (paymentId) => {
+    const slipWindow = window.open('about:blank', '_blank');
+    if (!slipWindow) {
+      setError('เบราว์เซอร์บล็อกหน้าต่างสลิป กรุณาอนุญาต popup แล้วลองใหม่');
+      return;
+    }
+    slipWindow.opener = null;
+    try {
+      const { data } = await api.get(`/payments/${paymentId}/slip`, { responseType: 'blob' });
+      const objectUrl = URL.createObjectURL(data);
+      slipWindow.location.href = objectUrl;
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+    } catch (e) {
+      slipWindow.close();
+      setError(getErrorMessage(e));
+    }
+  };
 
   const review = async (id, approve) => {
     setReviewing(id);
@@ -39,18 +56,19 @@ export default function FinancePage() {
   };
 
   return (
-    <main className="max-w-5xl mx-auto px-4 py-8">
+    <main id="main-content" className="max-w-5xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold mb-6">รายการชำระเงิน</h1>
       <ErrorAlert message={error} />
+      <section aria-label="ค้นหาและรายการชำระเงิน">
       <div className="card flex flex-wrap items-end gap-3 mb-6">
         <div>
-          <label className="label">จากวันที่</label>
-          <input type="date" className="input" value={range.from}
+          <label className="label" htmlFor="finance-from">จากวันที่</label>
+          <input id="finance-from" type="date" className="input" value={range.from}
                  onChange={(e) => setRange((r) => ({ ...r, from: e.target.value }))} />
         </div>
         <div>
-          <label className="label">ถึงวันที่</label>
-          <input type="date" className="input" value={range.to}
+          <label className="label" htmlFor="finance-to">ถึงวันที่</label>
+          <input id="finance-to" type="date" className="input" value={range.to}
                  onChange={(e) => setRange((r) => ({ ...r, to: e.target.value }))} />
         </div>
         <button onClick={load} className="btn-primary">ค้นหา</button>
@@ -80,8 +98,8 @@ export default function FinancePage() {
                   <td className="py-2 pr-3">{p.method}</td>
                   <td className="py-2 pr-3">{formatTHB(p.amount)}</td>
                   <td className="py-2 pr-3">
-                    {p.slipUrl ? <a href={`${apiOrigin}${p.slipUrl}`} target="_blank" rel="noreferrer"
-                                    className="text-brand-600 underline">เปิดดู</a> : '-'}
+                    {p.hasSlip ? <button type="button" onClick={() => openSlip(p.id)}
+                                          className="text-brand-600 underline">เปิดดู</button> : '-'}
                   </td>
                   <td className="py-2 pr-3"><StatusBadge status={p.status} /></td>
                   <td className="py-2 pr-3">
@@ -98,6 +116,7 @@ export default function FinancePage() {
           </table>
         </div>
       )}
+      </section>
     </main>
   );
 }

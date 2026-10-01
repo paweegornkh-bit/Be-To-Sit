@@ -1,5 +1,7 @@
 import { prisma } from '../config/prisma.js';
 import { ApiError } from '../utils/ApiError.js';
+import { can } from '../middlewares/rbac.js';
+import { fileStorage } from './fileStorage.service.js';
 
 const refCode = () =>
   'PAY' + Date.now().toString(36).toUpperCase() +
@@ -19,10 +21,13 @@ export const paymentService = {
       throw ApiError.conflict('PAYMENT_PENDING', 'มีสลิปที่รอตรวจสอบอยู่แล้ว');
     }
     if (!slipUrl) throw ApiError.badRequest('กรุณาแนบสลิปการโอนเงิน');
-    return prisma.payment.create({
+    const payment = await prisma.payment.create({
       data: { reservationId, method, amount: r.depositAmount, refCode: refCode(),
               status: 'PENDING', slipUrl }
     });
+    const publicPayment = { ...payment };
+    delete publicPayment.slipUrl;
+    return publicPayment;
   },
 
   async review(id, approve) {
@@ -42,6 +47,26 @@ export const paymentService = {
         });
       }
       return updated;
+    });
+  },
+
+  async getSlip(id, user) {
+    const payment = await prisma.payment.findUnique({
+      where: { id },
+      select: { slipUrl: true, reservation: { select: { userId: true } } }
+    });
+    if (!payment?.slipUrl) throw ApiError.notFound('ไม่พบไฟล์สลิป');
+    if (payment.reservation.userId !== user.id && !can(user.role, 'payment:read')) {
+      throw ApiError.forbidden('คุณไม่มีสิทธิ์ดูสลิปนี้');
+    }
+    return fileStorage.read(payment.slipUrl);
+  },
+
+  getReceiptData(id) {
+    return prisma.payment.findUniqueOrThrow({
+      where: { id },
+      include: { reservation: { include: { user: true, table: true, items:
+        { include: { menuItem: true } } } } }
     });
   },
 
@@ -90,6 +115,9 @@ export const paymentService = {
       }),
       prisma.payment.count({ where })
     ]);
-    return { rows, meta: { page, limit, total } };
+    const safeRows = rows.map(({ slipUrl, ...payment }) => ({
+      ...payment, hasSlip: Boolean(slipUrl)
+    }));
+    return { rows: safeRows, meta: { page, limit, total } };
   }
 };

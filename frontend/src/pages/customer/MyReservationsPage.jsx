@@ -4,12 +4,15 @@ import { api, getErrorMessage } from '../../services/api';
 import { useToast } from '../../components/ui/Toast';
 import { Spinner, EmptyState, ErrorAlert, StatusBadge } from '../../components/ui/Common';
 import { formatTHB } from '../../utils/perf';
+import { useDebounce } from '../../hooks/useDebounce';
 
 export default function MyReservationsPage() {
   const toast = useToast();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [query, setQuery] = useState('');
+  const debouncedQuery = useDebounce(query, 350);
 
   const load = () => {
     setLoading(true);
@@ -20,6 +23,12 @@ export default function MyReservationsPage() {
   };
 
   useEffect(() => { load(); }, []);
+
+  // ใช้ debounce เพื่อไม่กรองรายการใหม่ทุกครั้งที่พิมพ์แต่ละตัวอักษร
+  const filteredRows = rows.filter((row) => {
+    const searchText = `${row.table?.tableNo || ''} ${row.status} ${row.timeSlot} ${new Date(row.reserveDate).toLocaleDateString('th-TH')}`;
+    return searchText.toLowerCase().includes(debouncedQuery.trim().toLowerCase());
+  });
 
   const onCancel = async (id) => {
     if (!confirm('ยืนยันการยกเลิกการจองนี้?')) return;
@@ -32,17 +41,25 @@ export default function MyReservationsPage() {
     }
   };
 
-  if (loading) return <Spinner />;
+  if (loading) return <main id="main-content" className="max-w-4xl mx-auto px-4 py-8">
+    <h1 className="sr-only">การจองของฉัน</h1><Spinner />
+  </main>;
 
   return (
-    <main className="max-w-4xl mx-auto px-4 py-8">
+    <main id="main-content" className="max-w-4xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold mb-6">การจองของฉัน</h1>
       <ErrorAlert message={error} />
-      {rows.length === 0 ? (
+      <label className="block mb-5" htmlFor="reservation-search">
+        <span className="label">ค้นหาการจอง</span>
+        <input id="reservation-search" type="search" className="input" value={query}
+               onChange={(e) => setQuery(e.target.value)} placeholder="โต๊ะ สถานะ วันที่ หรือเวลา" />
+      </label>
+      <section aria-label="รายการจองของฉัน">
+      {filteredRows.length === 0 ? (
         <EmptyState title="ยังไม่มีการจอง" hint="ไปที่หน้าจองโต๊ะเพื่อเริ่มจองครั้งแรก" />
       ) : (
         <div className="space-y-3">
-          {rows.map((r) => (
+          {filteredRows.map((r) => (
             <div key={r.id} className="card flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="font-medium">
@@ -65,6 +82,7 @@ export default function MyReservationsPage() {
           ))}
         </div>
       )}
+      </section>
     </main>
   );
 }

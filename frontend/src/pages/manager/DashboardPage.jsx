@@ -16,8 +16,12 @@ export default function DashboardPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <Spinner />;
-  if (error) return <main className="max-w-6xl mx-auto px-4 py-8"><ErrorAlert message={error} /></main>;
+  if (loading) return <main id="main-content" className="max-w-6xl mx-auto px-4 py-8">
+    <h1 className="sr-only">แดชบอร์ดผู้บริหาร</h1><Spinner />
+  </main>;
+  if (error) return <main id="main-content" className="max-w-6xl mx-auto px-4 py-8">
+    <h1 className="text-2xl font-bold mb-6">แดชบอร์ดผู้บริหาร</h1><ErrorAlert message={error} />
+  </main>;
   if (!data) return null;
 
   const kpiCards = [
@@ -30,7 +34,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <main className="max-w-6xl mx-auto px-4 py-8">
+    <main id="main-content" className="max-w-6xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold mb-6">แดชบอร์ดผู้บริหาร</h1>
 
       <div className="grid sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
@@ -43,8 +47,8 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6 mb-6">
-        <div className="card">
-          <h2 className="font-semibold mb-3">ยอดขายรายวัน</h2>
+        <section className="card" aria-labelledby="sales-chart-heading">
+          <h2 id="sales-chart-heading" className="font-semibold mb-3">ยอดขายรายวัน</h2>
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={data.daily}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -54,9 +58,14 @@ export default function DashboardPage() {
               <Line type="monotone" dataKey="revenue" stroke="#ea580c" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
-        </div>
-        <div className="card">
-          <h2 className="font-semibold mb-3">เมนูขายดี Top 10</h2>
+          <table className="sr-only">
+            <caption>สรุปยอดขายรายวัน</caption>
+            <thead><tr><th>วันที่</th><th>ยอดขาย</th><th>จำนวนการจอง</th><th>จำนวนคนเฉลี่ย</th></tr></thead>
+            <tbody>{data.daily.map((row) => <tr key={row.day}><th>{row.day}</th><td>{formatTHB(row.revenue)}</td><td>{row.reservations}</td><td>{row.avg_party}</td></tr>)}</tbody>
+          </table>
+        </section>
+        <section className="card" aria-labelledby="top-menus-heading">
+          <h2 id="top-menus-heading" className="font-semibold mb-3">เมนูขายดี Top 10</h2>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={data.topMenus} layout="vertical" margin={{ left: 40 }}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -66,18 +75,23 @@ export default function DashboardPage() {
               <Bar dataKey="qty" fill="#f97316" />
             </BarChart>
           </ResponsiveContainer>
-        </div>
+          <table className="sr-only">
+            <caption>สรุปเมนูขายดี</caption>
+            <thead><tr><th>เมนู</th><th>จำนวนที่ขาย</th><th>ยอดขาย</th></tr></thead>
+            <tbody>{data.topMenus.map((row) => <tr key={row.name}><th>{row.name}</th><td>{row.qty}</td><td>{formatTHB(row.revenue)}</td></tr>)}</tbody>
+          </table>
+        </section>
       </div>
 
       {data.lowStock.length > 0 && (
-        <div className="card border-red-200 bg-red-50">
+        <section className="card border-red-200 bg-red-50">
           <h2 className="font-semibold text-red-700 mb-2">⚠️ วัตถุดิบใกล้หมด</h2>
           <ul className="text-sm text-red-700 space-y-1">
             {data.lowStock.map((i) => (
               <li key={i.id}>{i.name} — คงเหลือ {i.stockQty} {i.unit} (จุดสั่งซื้อ {i.reorderPoint})</li>
             ))}
           </ul>
-        </div>
+        </section>
       )}
     </main>
   );

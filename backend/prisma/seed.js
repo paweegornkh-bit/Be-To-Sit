@@ -1,5 +1,13 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
+import { assertSeedAllowed } from './seed-policy.js';
+
+assertSeedAllowed({
+  appEnv: process.env.APP_ENV,
+  nodeEnv: process.env.NODE_ENV,
+  allowTestSeed: process.env.ALLOW_TEST_SEED
+});
+
 const prisma = new PrismaClient();
 
 const ZONES = ['โซน A – ริมหน้าต่าง', 'โซน B – กลางร้าน', 'โซน C – สวนกลางแจ้ง', 'โซน VIP'];

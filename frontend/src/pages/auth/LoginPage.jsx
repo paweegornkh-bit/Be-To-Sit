@@ -30,9 +30,21 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="min-h-screen grid place-items-center bg-gray-50 px-4">
-      <div className="card w-full max-w-md">
-        <h1 className="text-2xl font-bold text-center mb-1">🍽️ TableTime</h1>
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      <header className="bg-white border-b px-4 py-3">
+        <span className="font-bold text-brand-600">TableTime</span>
+      </header>
+      <main id="main-content" className="flex-1 grid place-items-center px-4">
+      <section className="card w-full max-w-md" aria-labelledby="login-heading">
+        <svg className="mx-auto mb-3 text-brand-600" width="64" height="64" viewBox="0 0 64 64"
+             role="img" aria-labelledby="tabletime-art-title">
+          <title id="tabletime-art-title">จานอาหารและช้อนส้อม</title>
+          <circle cx="32" cy="32" r="22" fill="none" stroke="currentColor" strokeWidth="3" />
+          <circle cx="32" cy="32" r="15" fill="none" stroke="currentColor" strokeWidth="2" />
+          <path d="M8 13v14m-4-14v8m8-8v8m-4 6v24M56 13c-5 6-6 13-2 18h4V13m-2 18v24"
+                fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+        </svg>
+        <h1 id="login-heading" className="text-2xl font-bold text-center mb-1">เข้าสู่ระบบ TableTime</h1>
         <p className="text-center text-gray-500 mb-6">เข้าสู่ระบบเพื่อจองโต๊ะหรือจัดการร้าน</p>
         <ErrorAlert message={error} />
         <form onSubmit={onSubmit} className="space-y-4">
@@ -53,12 +65,9 @@ export default function LoginPage() {
         <p className="text-sm text-center text-gray-500 mt-5">
           ยังไม่มีบัญชี? <Link to="/register" className="text-brand-600 font-medium">สมัครสมาชิก</Link>
         </p>
-        <div className="mt-6 pt-4 border-t text-xs text-gray-400">
-          <p className="font-medium mb-1">บัญชีทดสอบ (รหัสผ่าน: Test1234)</p>
-          <p>customer@example.com · owner@tabletime.app · manager@tabletime.app</p>
-          <p>host@tabletime.app · finance@tabletime.app · stock@tabletime.app</p>
-        </div>
-      </div>
-    </main>
+      </section>
+      </main>
+      <footer className="bg-white border-t py-4 text-center text-sm text-gray-400">TableTime</footer>
+    </div>
   );
 }
