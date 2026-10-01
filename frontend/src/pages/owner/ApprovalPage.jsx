@@ -30,17 +30,20 @@ export default function ApprovalPage() {
     }
   };
 
-  if (loading) return <Spinner />;
+  if (loading) return <main id="main-content" className="max-w-4xl mx-auto px-4 py-8">
+    <h1 className="sr-only">อนุมัติรายจ่าย</h1><Spinner />
+  </main>;
 
   const pending = rows.filter((r) => r.status === 'PENDING');
   const decided = rows.filter((r) => r.status !== 'PENDING');
 
   return (
-    <main className="max-w-4xl mx-auto px-4 py-8">
+    <main id="main-content" className="max-w-4xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold mb-6">อนุมัติรายจ่าย</h1>
       <ErrorAlert message={error} />
 
-      <h2 className="font-semibold mb-3 text-gray-700">รออนุมัติ</h2>
+      <section aria-labelledby="pending-expenses-heading">
+      <h2 id="pending-expenses-heading" className="font-semibold mb-3 text-gray-700">รออนุมัติ</h2>
       {pending.length === 0 ? <EmptyState title="ไม่มีรายการรออนุมัติ" /> : (
         <div className="space-y-3 mb-8">
           {pending.map((e) => (
@@ -59,7 +62,9 @@ export default function ApprovalPage() {
         </div>
       )}
 
-      <h2 className="font-semibold mb-3 text-gray-700">ประวัติการตัดสินใจ</h2>
+      </section>
+      <section aria-labelledby="decided-expenses-heading">
+      <h2 id="decided-expenses-heading" className="font-semibold mb-3 text-gray-700">ประวัติการตัดสินใจ</h2>
       {decided.length === 0 ? <EmptyState title="ยังไม่มีประวัติ" /> : (
         <div className="space-y-3">
           {decided.map((e) => (
@@ -76,6 +81,7 @@ export default function ApprovalPage() {
           ))}
         </div>
       )}
+      </section>
     </main>
   );
 }

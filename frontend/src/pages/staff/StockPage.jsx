@@ -33,17 +33,20 @@ export default function StockPage() {
     }
   };
 
-  if (loading) return <Spinner />;
+  if (loading) return <main id="main-content" className="max-w-4xl mx-auto px-4 py-8">
+    <h1 className="sr-only">คลังวัตถุดิบ</h1><Spinner />
+  </main>;
 
   return (
-    <main className="max-w-4xl mx-auto px-4 py-8">
+    <main id="main-content" className="max-w-4xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold mb-6">คลังวัตถุดิบ</h1>
       <ErrorAlert message={error} />
 
+      <section aria-label="บันทึกความเคลื่อนไหวสต็อก">
       <form onSubmit={onSubmit} className="card grid sm:grid-cols-4 gap-3 mb-6 items-end">
         <div className="sm:col-span-2">
-          <label className="label">วัตถุดิบ</label>
-          <select className="input" value={form.ingredientId}
+          <label className="label" htmlFor="stock-ingredient">วัตถุดิบ</label>
+          <select id="stock-ingredient" className="input" value={form.ingredientId}
                   onChange={(e) => setForm((f) => ({ ...f, ingredientId: e.target.value }))} required>
             <option value="">เลือกวัตถุดิบ</option>
             {ingredients.map((i) => (
@@ -52,8 +55,8 @@ export default function StockPage() {
           </select>
         </div>
         <div>
-          <label className="label">ประเภท</label>
-          <select className="input" value={form.type}
+          <label className="label" htmlFor="stock-type">ประเภท</label>
+          <select id="stock-type" className="input" value={form.type}
                   onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}>
             <option value="IN">รับเข้า</option>
             <option value="OUT">เบิกออก</option>
@@ -61,15 +64,17 @@ export default function StockPage() {
           </select>
         </div>
         <div>
-          <label className="label">จำนวน</label>
-          <input type="number" step="0.01" min="0" className="input" value={form.qty}
+          <label className="label" htmlFor="stock-quantity">จำนวน</label>
+          <input id="stock-quantity" type="number" step="0.01" min="0" className="input" value={form.qty}
                  onChange={(e) => setForm((f) => ({ ...f, qty: e.target.value }))} required />
         </div>
         <div className="sm:col-span-4">
           <button type="submit" className="btn-primary">บันทึก</button>
         </div>
       </form>
+      </section>
 
+      <section aria-label="รายการวัตถุดิบ">
       {ingredients.length === 0 ? <EmptyState title="ยังไม่มีวัตถุดิบ" /> : (
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">
@@ -100,6 +105,7 @@ export default function StockPage() {
           </table>
         </div>
       )}
+      </section>
     </main>
   );
 }

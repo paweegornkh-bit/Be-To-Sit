@@ -5,8 +5,8 @@ import { env } from '../config/env.js';
 import { ApiError } from '../utils/ApiError.js';
 
 const SALT_ROUNDS = 12;
-const MAX_FAILED = 20;
-const LOCK_MINUTES = 1;
+const MAX_FAILED = env.authMaxFailed;
+const LOCK_MINUTES = env.authLockMinutes;
 
 const sign = (user) => ({
   accessToken: jwt.sign({ sub: user.id, role: user.role }, env.jwtSecret,

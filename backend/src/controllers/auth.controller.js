@@ -1,7 +1,7 @@
 import { authService } from '../services/auth.service.js';
 import { asyncHandler } from '../utils/ApiError.js';
 import { ok, created } from '../utils/response.js';
-import { writeAudit } from '../utils/audit.js';
+import { auditService } from '../services/audit.service.js';
 import { env } from '../config/env.js';
 
 const cookieOpts = {
@@ -13,7 +13,7 @@ export const authController = {
   register: asyncHandler(async (req, res) => {
     const { refreshToken, ...rest } = await authService.register(req.body);
     res.cookie('refreshToken', refreshToken, cookieOpts);
-    await writeAudit({ userId: rest.user.id, action: 'REGISTER', entity: 'User',
+    await auditService.write({ userId: rest.user.id, action: 'REGISTER', entity: 'User',
                        entityId: rest.user.id, ip: req.ip });
     created(res, rest);
   }),
@@ -21,7 +21,7 @@ export const authController = {
   login: asyncHandler(async (req, res) => {
     const { refreshToken, ...rest } = await authService.login(req.body);
     res.cookie('refreshToken', refreshToken, cookieOpts);
-    await writeAudit({ userId: rest.user.id, action: 'LOGIN', entity: 'User',
+    await auditService.write({ userId: rest.user.id, action: 'LOGIN', entity: 'User',
                        entityId: rest.user.id, ip: req.ip });
     ok(res, rest);
   }),

@@ -27,9 +27,13 @@ export default function RegisterPage() {
   };
 
   return (
-    <main className="min-h-screen grid place-items-center bg-gray-50 px-4 py-10">
-      <div className="card w-full max-w-md">
-        <h1 className="text-2xl font-bold text-center mb-1">สมัครสมาชิก</h1>
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      <header className="bg-white border-b px-4 py-3">
+        <span className="font-bold text-brand-600">TableTime</span>
+      </header>
+      <main id="main-content" className="flex-1 grid place-items-center px-4 py-10">
+      <section className="card w-full max-w-md" aria-labelledby="register-heading">
+        <h1 id="register-heading" className="text-2xl font-bold text-center mb-1">สมัครสมาชิก</h1>
         <p className="text-center text-gray-500 mb-6">สร้างบัญชีเพื่อเริ่มจองโต๊ะกับ TableTime</p>
         <ErrorAlert message={error} />
         <form onSubmit={onSubmit} className="space-y-4">
@@ -62,7 +66,9 @@ export default function RegisterPage() {
         <p className="text-sm text-center text-gray-500 mt-5">
           มีบัญชีอยู่แล้ว? <Link to="/login" className="text-brand-600 font-medium">เข้าสู่ระบบ</Link>
         </p>
-      </div>
-    </main>
+      </section>
+      </main>
+      <footer className="bg-white border-t py-4 text-center text-sm text-gray-400">TableTime</footer>
+    </div>
   );
 }

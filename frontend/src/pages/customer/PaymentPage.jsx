@@ -62,8 +62,12 @@ export default function PaymentPage() {
     }
   };
 
-  if (loading) return <Spinner />;
-  if (error) return <main className="max-w-md mx-auto px-4 py-8"><ErrorAlert message={error} /></main>;
+  if (loading) return <main id="main-content" className="max-w-md mx-auto px-4 py-8">
+    <h1 className="sr-only">ชำระค่ามัดจำ</h1><Spinner />
+  </main>;
+  if (error) return <main id="main-content" className="max-w-md mx-auto px-4 py-8">
+    <h1 className="text-2xl font-bold mb-6">ชำระค่ามัดจำ</h1><ErrorAlert message={error} />
+  </main>;
   if (!reservation) return null;
 
   const alreadyPaid = reservation.payments?.some((p) => p.status === 'SUCCESS');
@@ -71,7 +75,7 @@ export default function PaymentPage() {
   const failedPayment = reservation.payments?.some((p) => p.status === 'FAILED');
 
   return (
-    <main className="max-w-md mx-auto px-4 py-8">
+    <main id="main-content" className="max-w-md mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold mb-6">ชำระค่ามัดจำ</h1>
       <div className="card space-y-3 mb-5">
         <div className="flex justify-between text-sm">
@@ -96,6 +100,7 @@ export default function PaymentPage() {
         </div>
       </div>
 
+      <section aria-label="การชำระเงิน">
       {alreadyPaid ? (
         <div className="card text-center text-green-700 bg-green-50 border-green-200">
           การจองนี้ชำระเงินเรียบร้อยแล้ว
@@ -108,10 +113,12 @@ export default function PaymentPage() {
         <div className="card text-center text-gray-600">การจองนี้ไม่ต้องชำระค่ามัดจำ</div>
       ) : (
         <div className="card space-y-4">
-          <label className="label">ช่องทางชำระเงิน</label>
+          <fieldset>
+          <legend className="label">ช่องทางชำระเงิน</legend>
           <div className="grid grid-cols-3 gap-2">
             {METHODS.map((m) => (
-              <button key={m.value} onClick={() => setMethod(m.value)}
+              <button type="button" key={m.value} aria-pressed={method === m.value}
+                      onClick={() => setMethod(m.value)}
                       className={`p-2 rounded-lg text-sm border ${
                         method === m.value ? 'bg-brand-600 text-white border-brand-600'
                                             : 'border-gray-300 hover:bg-gray-50'}`}>
@@ -119,6 +126,7 @@ export default function PaymentPage() {
               </button>
             ))}
           </div>
+          </fieldset>
           {method === 'TRANSFER' && (
             <div>
               <div className="rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm space-y-1">
@@ -143,6 +151,7 @@ export default function PaymentPage() {
           )}
         </div>
       )}
+      </section>
     </main>
   );
 }
