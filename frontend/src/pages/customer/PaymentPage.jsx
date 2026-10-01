@@ -50,9 +50,7 @@ export default function PaymentPage() {
     data.append('slip', slipFile);
     setPaying(true);
     try {
-      await api.post('/payments/transfer-slip', data, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      await api.post('/payments/transfer-slip', data);
       toast.success('ส่งสลิปแล้ว รอการตรวจสอบจากการเงิน');
       navigate('/my-reservations');
     } catch (err) {

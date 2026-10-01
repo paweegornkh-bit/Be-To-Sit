@@ -11,7 +11,7 @@ export const paymentController = {
     created(res, payment);
   }),
   submitSlip: asyncHandler(async (req, res) => {
-    if (!req.file) throw ApiError.badRequest('กรุณาแนบสลิปการโอนเงิน');
+    if (!req.file?.storageKey) throw ApiError.badRequest('กรุณาแนบสลิปการโอนเงิน');
     const { reservationId, method = 'TRANSFER' } = req.body;
     const payment = await paymentService.submitSlip({
       reservationId, method, slipUrl: req.file.storageKey
