@@ -12,6 +12,7 @@ export const getToken = () => accessToken;
 
 api.interceptors.request.use((cfg) => {
   if (accessToken) cfg.headers.Authorization = `Bearer ${accessToken}`;
+  if (cfg.data instanceof FormData) delete cfg.headers['Content-Type'];
   return cfg;
 });
 
