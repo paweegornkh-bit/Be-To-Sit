@@ -25,17 +25,32 @@ export default function FinancePage() {
   const total = rows.reduce((s, p) => s + (p.status === 'SUCCESS' ? Number(p.amount) : 0), 0);
   const [reviewing, setReviewing] = useState(null);
   const [slipPreview, setSlipPreview] = useState(null);
+  const [slipLoading, setSlipLoading] = useState(false);
 
   useEffect(() => () => {
     if (slipPreview) URL.revokeObjectURL(slipPreview);
   }, [slipPreview]);
 
   const openSlip = async (paymentId) => {
+    setSlipLoading(true);
+    setError('');
     try {
       const { data } = await api.get(`/payments/${paymentId}/slip`, { responseType: 'blob' });
+      if (!data.type?.startsWith('image/')) {
+        const message = await data.text();
+        let errorMessage = 'ไม่สามารถโหลดรูปสลิปได้';
+        try {
+          errorMessage = JSON.parse(message)?.error?.message || errorMessage;
+        } catch {
+          errorMessage = 'ไม่สามารถโหลดรูปสลิปได้';
+        }
+        throw new Error(errorMessage);
+      }
       setSlipPreview(URL.createObjectURL(data));
     } catch (e) {
-      setError(getErrorMessage(e));
+      setError(e.message || getErrorMessage(e));
+    } finally {
+      setSlipLoading(false);
     }
   };
 
@@ -99,7 +114,7 @@ export default function FinancePage() {
                   <td className="py-2 pr-3">{p.method}</td>
                   <td className="py-2 pr-3">{formatTHB(p.amount)}</td>
                   <td className="py-2 pr-3">
-                    {p.hasSlip ? <button type="button" onClick={() => openSlip(p.id)}
+                    {p.hasSlip ? <button type="button" disabled={slipLoading} onClick={() => openSlip(p.id)}
                                           className="text-brand-600 underline">เปิดดู</button> : '-'}
                   </td>
                   <td className="py-2 pr-3"><StatusBadge status={p.status} /></td>
@@ -119,7 +134,9 @@ export default function FinancePage() {
       )}
       </section>
       <Modal open={Boolean(slipPreview)} title="สลิปการโอนเงิน" onClose={closeSlip}>
-        {slipPreview && <img src={slipPreview} alt="สลิปการโอนเงิน" className="mx-auto max-h-[75vh] max-w-full object-contain" />}
+        {slipPreview && <img src={slipPreview} alt="สลิปการโอนเงิน"
+                             onError={() => { closeSlip(); setError('ไม่สามารถแสดงรูปสลิปได้'); }}
+                             className="mx-auto max-h-[75vh] max-w-full object-contain" />}
       </Modal>
     </main>
   );
